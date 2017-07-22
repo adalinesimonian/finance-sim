@@ -8,7 +8,10 @@ const config = toml.parse(fs.readFileSync('config.toml', {encoding: 'utf-8'}))
 const transactions = config.transactions || []
 const bankFees = config['bank-fees'] || []
 
+const debug = Boolean(process.env.DEBUG)
+
 function activeDates (transaction, start, end) {
+  debug && console.log(`activeDates(${transaction.name}, ${datefns.format(start, 'YYYY-MM-DD')}, ${datefns.format(end, 'YYYY-MM-DD')})`)
   return jshiki.parse(
     transaction.when,
     {scope: {
@@ -27,38 +30,104 @@ function activeDates (transaction, start, end) {
       sat: 6,
       sun: 7,
       weekly: day => {
+        debug && console.log(`weekly(${day})`)
         let weeks = datefns.differenceInCalendarISOWeeks(end, start) + 1
-        let dates = []
+        let dates = new Set()
         for (let i = 0; i <= weeks; i++) {
           let date = datefns.addWeeks(start, i)
-          dates.push(datefns.setISODay(date, day))
+          dates.add(datefns.setISODay(date, day).getTime())
         }
         return dates
       },
       monthly: day => {
+        debug && console.log(`monthly(${day})`)
         let months = datefns.differenceInMonths(end, start) + 1
-        let dates = []
+        let dates = new Set()
         for (let i = 0; i <= months; i++) {
           let date = datefns.addMonths(start, i)
-          dates.push(datefns.setDate(date, day))
+          dates.add(datefns.setDate(date, day).getTime())
         }
         return dates
       },
-      firstnotweekend: dates => dates.map(date => {
-        while (datefns.isWeekend(date)) {
-          date = datefns.addDays(date, 1)
-        }
-        return date
-      }),
-      lastnotweekend: dates => dates.map(date => {
-        while (datefns.isWeekend(date)) {
-          date = datefns.subDays(date, 1)
-        }
-        return date
-      }),
-      once: date => [datefns.parse(date)],
+      firstnotweekend: dates => {
+        debug && console.log(`firstnotweekend(${[...dates].join(', ')})`)
+        dates.forEach(date => {
+          let newDate = date
+          while (datefns.isWeekend(newDate)) {
+            debug && console.log(`  date ${newDate} (${datefns.format(newDate, 'YYYY-MM-DD')}) is weekend, rolling forward 1 day`)
+            newDate = datefns.addDays(newDate, 1)
+          }
+          newDate = newDate.getTime ? newDate.getTime() : newDate
+          if (newDate !== date) {
+            debug && console.log(`  set to weekday ${newDate} (${datefns.format(newDate, 'YYYY-MM-DD')})`)
+            dates.delete(date)
+            dates.add(newDate)
+          }
+        })
+        return dates
+      },
+      lastnotweekend: dates => {
+        debug && console.log(`lastnotweekend(${[...dates].join(', ')})`)
+        dates.forEach(date => {
+          let newDate = date
+          while (datefns.isWeekend(newDate)) {
+            debug && console.log(`  date ${newDate} (${datefns.format(newDate, 'YYYY-MM-DD')}) is weekend, rolling back 1 day`)
+            newDate = datefns.subDays(newDate, 1)
+          }
+          newDate = newDate.getTime ? newDate.getTime() : newDate
+          if (newDate !== date) {
+            debug && console.log(`  set to weekday ${newDate} (${datefns.format(newDate, 'YYYY-MM-DD')})`)
+            dates.delete(date)
+            dates.add(newDate)
+          }
+        })
+        return dates
+      },
+      once: date => {
+        debug && console.log(`once(${date})`)
+        date = datefns.parse(date)
+        date.setHours(0, 0, 0, 0)
+        return new Set([date.getTime()])
+      },
       add: function () {
-        return Array.from(arguments).reduce((dates1, dates2) => dates1.concat(dates2))
+        debug && console.log(`add(${Array.from(arguments).join(', ')})`)
+        return Array.from(arguments).reduce((dates1, dates2) => {
+          for (const date of dates2) {
+            debug && console.log(`  removing date ${date} (${datefns.format(date, 'YYYY-MM-DD')})`)
+            dates1.add(date)
+          }
+          return dates1
+        })
+      },
+      sub: function () {
+        debug && console.log(`sub(${Array.from(arguments).join(', ')})`)
+        return Array.from(arguments).reduce((dates1, dates2) => {
+          for (const date of dates2) {
+            debug && console.log(`  removing date ${date} (${datefns.format(date, 'YYYY-MM-DD')})`)
+            dates1.delete(date)
+          }
+          return dates1
+        })
+      },
+      after: (dates, afterDate) => {
+        debug && console.log(`after([${[...dates].join(', ')}], ${afterDate})`)
+        dates.forEach(d => {
+          if (!datefns.isAfter(d, afterDate)) {
+            debug && console.log(`  removing date ${d} (${datefns.format(d, 'YYYY-MM-DD')})`)
+            dates.delete(d)
+          }
+        })
+        return dates
+      },
+      before: (dates, beforeDate) => {
+        debug && console.log(`before([${[...dates].join(', ')}], ${beforeDate})`)
+        dates.forEach(d => {
+          if (!datefns.isBefore(d, beforeDate)) {
+            debug && console.log(`  removing date ${d} (${datefns.format(d, 'YYYY-MM-DD')})`)
+            dates.delete(d)
+          }
+        })
+        return dates
       }
     }}
   ).eval()
@@ -68,9 +137,11 @@ const startingBalance = Number(process.argv[2])
 const start = process.argv[3]
   ? datefns.parse(process.argv[3])
   : new Date()
+start.setHours(0, 0, 0, 0)
 const end = process.argv[4]
   ? datefns.parse(process.argv[4])
   : datefns.addMonths(start, 1)
+end.setHours(0, 0, 0, 0)
 
 const days = datefns.differenceInDays(end, start)
 let balance = startingBalance
@@ -82,11 +153,11 @@ transactions.forEach(t => {
     return
   }
   activeDates(t, start, end).forEach(d => {
-    const key = datefns.format(d, 'YYYY-MM-DD')
-    if (!calendar.has(key)) {
-      calendar.set(key, [])
+    debug && console.log(`add '${t.name}' for date ${d} (${datefns.format(d, 'YYYY-MM-DD')})`)
+    if (!calendar.has(d)) {
+      calendar.set(d, new Set())
     }
-    calendar.get(key).push(t)
+    calendar.get(d).add(t)
   })
 })
 
@@ -104,7 +175,7 @@ function formatCurrency (amount, padStart, padEnd) {
 const triggeredFees = []
 for (let i = 0; i <= days; i++) {
   let currentDate = datefns.addDays(start, i)
-  let key = datefns.format(currentDate, 'YYYY-MM-DD')
+  let key = currentDate.getTime()
   if (calendar.has(key)) {
     console.log(chalk.dim(datefns.format(currentDate, 'ddd, D MMMM YYYY')))
     let expensesMade = false
@@ -123,9 +194,9 @@ for (let i = 0; i <= days; i++) {
         alreadyTriggered: forDay => triggeredFees.some(tf =>
           tf.fee.name === f.name && tf.fee.entity === f.entity && (forDay
             ? (
-              datefns.getDate(date) === datefns.getDate(tf.date) &&
-              datefns.getMonth(date) === datefns.getMonth(tf.date) &&
-              datefns.getYear(date) === datefns.getYear(tf.date)
+              datefns.getDate(currentDate) === datefns.getDate(tf.date) &&
+              datefns.getMonth(currentDate) === datefns.getMonth(tf.date) &&
+              datefns.getYear(currentDate) === datefns.getYear(tf.date)
             )
             : true
           )
