@@ -4,7 +4,13 @@ A simple simulator which simulates what will happen to your bank account on a da
 
 ## Usage
 
-First, add your transactions and bank fees to `config.toml`. Here's an example:
+First, install `finance-sim`:
+
+```bash
+npm i -g finance-sim
+```
+
+Then, add your transactions and bank fees to `config.toml`. Here's an example:
 
 ```toml
 [[bank-fees]]
@@ -29,9 +35,9 @@ when   = "monthly(1)"
 Then run the script:
 
 ```bash
-# node index.js <starting balance> [start date] [end date]
+# finance-sim <starting balance> [start date] [end date]
 
-node index.js 3400 2017-1-1 2017-2-1
+finance-sim 3400 2017-1-1 2017-2-1
 ```
 
 And you'll get output much like this:
@@ -49,6 +55,8 @@ Wed, 1 February 2017
 TRX:      -$1,500.00  Rent                            My Landlord
 Ending:    $2,400.00
 ```
+
+Run `finance-sim --help` to see more command-line options.
 
 ## Licence
 

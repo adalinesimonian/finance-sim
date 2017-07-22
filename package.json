@@ -2,7 +2,26 @@
   "name": "finance-sim",
   "version": "1.0.0",
   "description": "Simulates daily transactions in a bank account",
+  "keywords": [
+    "finance",
+    "money",
+    "bank",
+    "banking",
+    "budgeting",
+    "simulation",
+    "simulator",
+    "simple",
+    "limited",
+    "cli",
+    "tool",
+    "command",
+    "line",
+    "application"
+  ],
   "main": "index.js",
+  "bin": {
+    "finance-sim": "./index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,10 +35,15 @@
     "url": "https://github.com/vsimonian/finance-sim/issues"
   },
   "homepage": "https://github.com/vsimonian/finance-sim#readme",
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "engineStrict": true,
   "dependencies": {
     "chalk": "^2.0.1",
     "date-fns": "^1.28.5",
     "jshiki": "^1.1.0",
-    "toml": "^2.3.2"
+    "toml": "^2.3.2",
+    "ukaz": "^0.2.3"
   }
 }
