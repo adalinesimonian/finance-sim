@@ -172,6 +172,9 @@ function formatCurrency (amount, padStart, padEnd) {
   return amount < 0 ? chalk.red(amtStr) : chalk.green(amtStr)
 }
 
+console.log(chalk.dim('Starting: ') + chalk.bold(formatCurrency(balance, 12)))
+console.log()
+
 const triggeredFees = []
 for (let i = 0; i <= days; i++) {
   let currentDate = datefns.addDays(start, i)
@@ -180,7 +183,7 @@ for (let i = 0; i <= days; i++) {
     console.log(chalk.dim(datefns.format(currentDate, 'ddd, D MMMM YYYY')))
     let expensesMade = false
     calendar.get(key).forEach(t => {
-      console.log(`TRX:    ${formatCurrency(t.amount, 12)}  ${t.name.padEnd(30)}  ${t.entity || ''}`)
+      console.log(`TRX:      ${formatCurrency(t.amount, 12)}  ${t.name.padEnd(30)}  ${t.entity || ''}`)
       balance += t.amount
       if (t.amount < 0) {
         expensesMade = true
@@ -204,10 +207,10 @@ for (let i = 0; i <= days; i++) {
       }}).eval()
       if (triggered) {
         triggeredFees.push({date: currentDate, fee: f})
-        console.log(`${chalk.red('FEE:')}    ${formatCurrency(f.amount, 12)}  ${f.name.padEnd(30)}  ${f.entity || ''}`)
+        console.log(`${chalk.red('FEE:')}      ${formatCurrency(f.amount, 12)}  ${f.name.padEnd(30)}  ${f.entity || ''}`)
       }
     })
-    console.log(chalk.dim('Ending: ') + chalk.bold(formatCurrency(balance, 12)))
+    console.log(chalk.dim('Ending:   ') + chalk.bold(formatCurrency(balance, 12)))
     console.log()
   }
 }
