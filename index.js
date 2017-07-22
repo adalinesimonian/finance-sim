@@ -52,7 +52,7 @@ function activeDates (transaction, start, end) {
       }),
       lastnotweekend: dates => dates.map(date => {
         while (datefns.isWeekend(date)) {
-          date = datefns.addDays(date, 1)
+          date = datefns.subDays(date, 1)
         }
         return date
       }),
